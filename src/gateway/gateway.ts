@@ -1,4 +1,5 @@
 import { OnModuleInit } from "@nestjs/common";
+import { Cron } from "@nestjs/schedule";
 import { ApiProperty } from "@nestjs/swagger";
 import { MessageBody, OnGatewayConnection, OnGatewayDisconnect, SubscribeMessage, WebSocketGateway, WebSocketServer } from "@nestjs/websockets";
 import { Server } from "socket.io";
@@ -142,5 +143,10 @@ export class Gateway implements OnModuleInit, OnGatewayConnection, OnGatewayDisc
         }
 
         this.players = shuffledPlayers;
+    }
+
+    @Cron("0 */14 * * * *")
+    cronAwakeServer() {
+        console.log('Awake server.');
     }
 }
