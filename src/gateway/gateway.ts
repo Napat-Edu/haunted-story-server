@@ -1,7 +1,9 @@
-import { OnModuleInit } from "@nestjs/common";
+import { HttpModule, HttpService } from "@nestjs/axios";
+import { Logger, Module, OnModuleInit } from "@nestjs/common";
 import { Cron } from "@nestjs/schedule";
 import { ApiProperty } from "@nestjs/swagger";
 import { MessageBody, OnGatewayConnection, OnGatewayDisconnect, SubscribeMessage, WebSocketGateway, WebSocketServer } from "@nestjs/websockets";
+import { catchError, firstValueFrom } from "rxjs";
 import { Server } from "socket.io";
 import { IKeywordMessage, IMessage, IPlayerData } from "src/interfaces/playerData.interface";
 
@@ -12,13 +14,22 @@ import { IKeywordMessage, IMessage, IPlayerData } from "src/interfaces/playerDat
     },
     transports: ['websocket', 'polling'],
 })
+@Module({
+    imports: [HttpModule]
+})
 export class Gateway implements OnModuleInit, OnGatewayConnection, OnGatewayDisconnect {
+
+    private readonly logger = new Logger("server-state-logger");
 
     @WebSocketServer()
     server: Server
 
     @ApiProperty({ type: [String] })
     players: IPlayerData[]
+
+    constructor(
+        private readonly httpService: HttpService,
+    ) { }
 
     onModuleInit() {
         this.players = [];
@@ -146,7 +157,16 @@ export class Gateway implements OnModuleInit, OnGatewayConnection, OnGatewayDisc
     }
 
     @Cron("0 */14 * * * *")
-    cronAwakeServer() {
-        console.log('Awake server.');
+    async cronAwakeServer() {
+        this.logger.debug('Awake server every 14 minutes');
+        const API_PATH = process.env.MODE === 'prod' ? process.env.SERVER_PROD_PATH : process.env.SERVER_DEV_PATH;
+        const response = await firstValueFrom(
+            this.httpService.get(API_PATH).pipe(
+                catchError((err: any) => {
+                    throw err;
+                })
+            )
+        );
+        console.log(response.data);
     }
 }
